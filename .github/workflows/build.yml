@@ -28,67 +28,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify assets
+      - name: Verify project structure
         run: |
-          echo "=== Checking assets ==="
-          ls -la assets/ 2>/dev/null || echo "assets/ missing!"
-          for f in icon.png splash.png adaptive-icon.png; do
-            if [ -f "assets/$f" ]; then
-              file "assets/$f"
-            else
-              echo "MISSING: assets/$f"
-            fi
-          done
-
-      - name: Prebuild Expo project
-        run: npx expo prebuild --clean --platform android
-
-      - name: Copy native Kotlin modules
-        run: |
-          echo "=== Copying native modules ==="
-          TARGET_DIR="android/app/src/main/java/com/kerneluser/ace"
-          mkdir -p "$TARGET_DIR"
-          cp native/*.kt "$TARGET_DIR/"
-          ls -la "$TARGET_DIR/"
-
-      - name: Register native modules in MainApplication
-        run: |
-          echo "=== Patching MainApplication.kt ==="
-          MAIN_APP=$(find android -name "MainApplication.kt" | head -1)
-          echo "Found: $MAIN_APP"
-
-          # 添加 import
-          if ! grep -q "AceKernelManagerPackage" "$MAIN_APP"; then
-            sed -i '/^import /a import com.kerneluser.ace.AceKernelManagerPackage' "$MAIN_APP"
-          fi
-
-          # 添加 packages.add
-          if ! grep -q "AceKernelManagerPackage()" "$MAIN_APP"; then
-            sed -i '/packages.add(new.*ReactPackage()/a\            packages.add(new AceKernelManagerPackage())' "$MAIN_APP"
-          fi
-
-          echo "=== Patched MainApplication.kt ==="
-          cat "$MAIN_APP"
-
-      - name: Add permissions to AndroidManifest
-        run: |
-          echo "=== Patching AndroidManifest.xml ==="
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-
-          if ! grep -q 'READ_EXTERNAL_STORAGE' "$MANIFEST"; then
-            sed -i '/<application/i\    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' "$MANIFEST"
-          fi
-          if ! grep -q 'WRITE_EXTERNAL_STORAGE' "$MANIFEST"; then
-            sed -i '/<application/i\    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' "$MANIFEST"
-          fi
-
-          echo "=== Patched AndroidManifest.xml ==="
-          cat "$MANIFEST"
+          echo "=== Android project structure ==="
+          ls -la android/
+          echo ""
+          echo "=== Native modules ==="
+          ls -la android/app/src/main/java/com/kerneluser/ace/
+          echo ""
+          echo "=== Build files ==="
+          cat android/build.gradle
+          echo ""
+          cat android/app/build.gradle
 
       - name: Build Release APK
         run: |
           cd android
-          chmod +x gradlew
+          chmod +x gradlew || true
           ./gradlew assembleRelease
 
       - name: List outputs

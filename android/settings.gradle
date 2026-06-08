@@ -1,0 +1,6 @@
+rootProject.name = 'AceKernelManager'
+
+apply from: file("../node_modules/@react-native-community/cli-plugin-android/native_modules.gradle")
+applyNativeModulesSettingsGradle(settings)
+
+include ':app'
