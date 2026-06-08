@@ -28,6 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Generate debug keystore
+        run: |
+          # Generate debug.keystore at android/app/ (matching build.gradle path)
+          keytool -genkey -v -keystore android/app/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" -noprompt
+
       - name: Verify project structure
         run: |
           echo "=== Android project structure ==="
@@ -39,12 +44,14 @@ jobs:
           echo "=== Build files ==="
           cat android/build.gradle
           echo ""
+          cat android/settings.gradle
+          echo ""
           cat android/app/build.gradle
 
       - name: Build Release APK
         run: |
           cd android
-          chmod +x gradlew || true
+          chmod +x gradlew
           ./gradlew assembleRelease
 
       - name: List outputs
