@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Ace Kernel Manager",
+    "slug": "ace-kernel-manager",
+    "version": "1.0.00",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.kerneluser.ace",
+      "versionCode": 10000,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
+      "minSdkVersion": 24,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35
+    },
+    "plugins": [
+      "./plugins/withAceKernelManager.js"
+    ],
+    "scheme": "acekernel",
+    "extra": {
+      "eas": {
+        "projectId": "ace-kernel-manager"
+      }
+    }
+  }
+}

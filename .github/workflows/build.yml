@@ -1,0 +1,77 @@
+name: Build Ace Kernel Manager APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create placeholder assets
+        run: |
+          mkdir -p assets
+          # 创建空的占位图标文件
+          convert -size 1024x1024 xc:white assets/icon.png 2>/dev/null || touch assets/icon.png
+          convert -size 1024x1024 xc:white assets/splash.png 2>/dev/null || touch assets/splash.png
+          convert -size 1024x1024 xc:white assets/adaptive-icon.png 2>/dev/null || touch assets/adaptive-icon.png
+
+      - name: Expo prebuild
+        run: npx expo prebuild --clean
+
+      - name: Copy native modules
+        run: |
+          # 确保原生模块文件在正确位置
+          mkdir -p android/app/src/main/java/com/kerneluser/ace
+          cp -r native/*.kt android/app/src/main/java/com/kerneluser/ace/ 2>/dev/null || true
+
+      - name: Build Release APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_apk
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "35.0.0"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AceKernelManager-APK
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: android/app/build/outputs/apk/release/*.apk
+          generate_release_notes: true

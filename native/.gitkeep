@@ -1,0 +1,3 @@
+// Kotlin 原生模块源码目录
+// 这些文件会在 prebuild 后复制到 android/app/src/main/java/com/kerneluser/ace/
+// 如果 prebuild 后文件未正确复制，请手动复制 native/ 目录下的 .kt 文件
