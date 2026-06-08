@@ -1,15 +1,15 @@
 name: Build Ace Kernel Manager APK
 
 on:
+  workflow_dispatch:
   push:
+    branches: [ main ]
     tags:
       - 'v*'
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,52 +17,75 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
           java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
       - name: Install dependencies
         run: npm install
 
-      - name: Create placeholder assets
+      - name: Verify assets
         run: |
-          mkdir -p assets
-          python3 -c "
-          import struct, zlib
-          def create_png(w, h, r=255, g=255, b=255):
-              def chunk(t, d):
-                  c = t + d
-                  crc = struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-                  return struct.pack('>I', len(d)) + c + crc
-              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
-              raw = b''
-              for y in range(h):
-                  raw += b'\x00'
-                  for x in range(w):
-                      raw += struct.pack('BBB', r, g, b)
-              compressed = zlib.compress(raw)
-              png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', compressed) + chunk(b'IEND', b'')
-              return png
-          data = create_png(1024, 1024)
-          for name in ['icon.png', 'splash.png', 'adaptive-icon.png']:
-              with open(f'assets/{name}', 'wb') as f:
-                  f.write(data)
-          print('Generated 3 valid PNG files')
-          "
-          ls -la assets/
+          echo "=== Checking assets ==="
+          ls -la assets/ 2>/dev/null || echo "assets/ missing!"
+          for f in icon.png splash.png adaptive-icon.png; do
+            if [ -f "assets/$f" ]; then
+              file "assets/$f"
+            else
+              echo "MISSING: assets/$f"
+            fi
+          done
 
-      - name: Expo prebuild
-        run: npx expo prebuild --clean
+      - name: Prebuild Expo project
+        run: npx expo prebuild --platform android --no-install
 
-      - name: Copy native modules
+      - name: Copy native Kotlin modules
         run: |
-          # 确保原生模块文件在正确位置
-          mkdir -p android/app/src/main/java/com/kerneluser/ace
-          cp -r native/*.kt android/app/src/main/java/com/kerneluser/ace/ 2>/dev/null || true
+          echo "=== Copying native modules ==="
+          TARGET_DIR="android/app/src/main/java/com/kerneluser/ace"
+          mkdir -p "$TARGET_DIR"
+          cp native/*.kt "$TARGET_DIR/"
+          ls -la "$TARGET_DIR/"
+
+      - name: Register native modules in MainApplication
+        run: |
+          echo "=== Patching MainApplication.kt ==="
+          MAIN_APP=$(find android -name "MainApplication.kt" | head -1)
+          echo "Found: $MAIN_APP"
+
+          # 添加 import
+          if ! grep -q "AceKernelManagerPackage" "$MAIN_APP"; then
+            sed -i '/^import /a import com.kerneluser.ace.AceKernelManagerPackage' "$MAIN_APP"
+          fi
+
+          # 添加 packages.add
+          if ! grep -q "AceKernelManagerPackage()" "$MAIN_APP"; then
+            sed -i '/packages.add(new.*ReactPackage()/a\            packages.add(new AceKernelManagerPackage())' "$MAIN_APP"
+          fi
+
+          echo "=== Patched MainApplication.kt ==="
+          cat "$MAIN_APP"
+
+      - name: Add permissions to AndroidManifest
+        run: |
+          echo "=== Patching AndroidManifest.xml ==="
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+
+          # 添加 uses-permission 到 <manifest> 标签内（在 <application> 之前）
+          if ! grep -q 'READ_EXTERNAL_STORAGE' "$MANIFEST"; then
+            sed -i '/<application/i\    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' "$MANIFEST"
+          fi
+          if ! grep -q 'WRITE_EXTERNAL_STORAGE' "$MANIFEST"; then
+            sed -i '/<application/i\    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' "$MANIFEST"
+          fi
+
+          echo "=== Patched AndroidManifest.xml ==="
+          cat "$MANIFEST"
 
       - name: Build Release APK
         run: |
@@ -70,22 +93,15 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        id: sign_apk
-        with:
-          releaseDirectory: android/app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: "35.0.0"
+      - name: List outputs
+        run: |
+          echo "=== Build outputs ==="
+          find android/app/build/outputs -type f -name "*.apk" 2>/dev/null || echo "No APK found"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AceKernelManager-APK
+          name: app-release
           path: android/app/build/outputs/apk/release/*.apk
 
       - name: Create Release

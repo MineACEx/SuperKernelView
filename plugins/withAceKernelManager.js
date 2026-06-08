@@ -1,63 +1,45 @@
-const { withAppBuildGradle, withMainApplication, withAndroidManifest } = require('@expo/config-plugins');
-const fs = require('fs');
-const path = require('path');
+const { withMainApplication } = require('@expo/config-plugins');
 
 /**
  * Ace Kernel Manager Expo Config Plugin
- * 自动注入原生模块注册代码到 MainApplication
+ * 仅注入 MainApplication 注册代码，原生文件复制在 CI 中手动完成
  */
 function withAceKernelManager(config) {
-  // 修改 app/build.gradle 添加 Kotlin 支持
-  config = withAppBuildGradle(config, (config) => {
-    const buildGradle = config.modResults.contents;
-
-    // 确保 Kotlin 插件存在
-    if (!buildGradle.includes("org.jetbrains.kotlin.android")) {
-      config.modResults.contents = buildGradle.replace(
-        /dependencies\s*\{/,
-        `dependencies {
-        implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.25"`
-      );
-    }
-
-    return config;
-  });
-
-  // 修改 MainApplication 注册原生模块
   config = withMainApplication(config, (config) => {
     let contents = config.modResults.contents;
 
     // 添加 import
     if (!contents.includes('import com.kerneluser.ace.AceKernelManagerPackage')) {
-      contents = contents.replace(
-        'import com.facebook.react.ReactPackage;',
-        `import com.facebook.react.ReactPackage;
-import com.kerneluser.ace.AceKernelManagerPackage;`
-      );
+      const lastImportMatch = contents.match(/import .+\n(?!import)/);
+      if (lastImportMatch) {
+        const insertPos = lastImportMatch.index + lastImportMatch[0].length;
+        contents = contents.slice(0, insertPos) +
+          'import com.kerneluser.ace.AceKernelManagerPackage\n' +
+          contents.slice(insertPos);
+      }
     }
 
-    // 添加包到 getPackages 列表
+    // 添加 packages.add(new AceKernelManagerPackage())
     if (!contents.includes('AceKernelManagerPackage')) {
-      contents = contents.replace(
-        /packages\.add\(new MainApplicationReactPackage\(\)\);/,
-        `packages.add(new MainApplicationReactPackage());
-            packages.add(new AceKernelManagerPackage());`
-      );
+      const addMatch = contents.match(/packages\.add\(new\s+\w+ReactPackage\(\)\)/);
+      if (addMatch) {
+        const insertPos = addMatch.index + addMatch[0].length;
+        contents = contents.slice(0, insertPos) +
+          '\n            packages.add(new AceKernelManagerPackage())' +
+          contents.slice(insertPos);
+      } else {
+        const returnMatch = contents.match(/return\s+packages/);
+        if (returnMatch) {
+          const insertPos = returnMatch.index;
+          contents = contents.slice(0, insertPos) +
+            '            packages.add(new AceKernelManagerPackage())\n' +
+            '            ' +
+            contents.slice(insertPos);
+        }
+      }
     }
 
     config.modResults.contents = contents;
-    return config;
-  });
-
-  // 添加 AndroidManifest 权限
-  config = withAndroidManifest(config, (config) => {
-    const manifest = config.modResults.manifest;
-
-    // 确保有 INTERNET 权限
-    const permissions = manifest.manifest.$['android:sharedUserId']
-      ? manifest.manifest
-      : manifest.manifest;
-
     return config;
   });
 
