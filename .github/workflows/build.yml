@@ -31,10 +31,29 @@ jobs:
       - name: Create placeholder assets
         run: |
           mkdir -p assets
-          # 创建空的占位图标文件
-          convert -size 1024x1024 xc:white assets/icon.png 2>/dev/null || touch assets/icon.png
-          convert -size 1024x1024 xc:white assets/splash.png 2>/dev/null || touch assets/splash.png
-          convert -size 1024x1024 xc:white assets/adaptive-icon.png 2>/dev/null || touch assets/adaptive-icon.png
+          python3 -c "
+          import struct, zlib
+          def create_png(w, h, r=255, g=255, b=255):
+              def chunk(t, d):
+                  c = t + d
+                  crc = struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+                  return struct.pack('>I', len(d)) + c + crc
+              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
+              raw = b''
+              for y in range(h):
+                  raw += b'\x00'
+                  for x in range(w):
+                      raw += struct.pack('BBB', r, g, b)
+              compressed = zlib.compress(raw)
+              png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', compressed) + chunk(b'IEND', b'')
+              return png
+          data = create_png(1024, 1024)
+          for name in ['icon.png', 'splash.png', 'adaptive-icon.png']:
+              with open(f'assets/{name}', 'wb') as f:
+                  f.write(data)
+          print('Generated 3 valid PNG files')
+          "
+          ls -la assets/
 
       - name: Expo prebuild
         run: npx expo prebuild --clean
