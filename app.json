@@ -29,9 +29,6 @@
       "compileSdkVersion": 35,
       "targetSdkVersion": 35
     },
-    "plugins": [
-      "./plugins/withAceKernelManager.js"
-    ],
     "scheme": "acekernel",
     "extra": {
       "eas": {

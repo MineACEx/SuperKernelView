@@ -41,7 +41,7 @@ jobs:
           done
 
       - name: Prebuild Expo project
-        run: npx expo prebuild --platform android --no-install
+        run: npx expo prebuild --clean --platform android
 
       - name: Copy native Kotlin modules
         run: |
@@ -75,7 +75,6 @@ jobs:
           echo "=== Patching AndroidManifest.xml ==="
           MANIFEST="android/app/src/main/AndroidManifest.xml"
 
-          # 添加 uses-permission 到 <manifest> 标签内（在 <application> 之前）
           if ! grep -q 'READ_EXTERNAL_STORAGE' "$MANIFEST"; then
             sed -i '/<application/i\    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' "$MANIFEST"
           fi
