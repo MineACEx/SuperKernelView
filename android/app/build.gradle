@@ -1,18 +1,16 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.facebook.react")
-}
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
 
 android {
     namespace "com.kerneluser.ace"
-    compileSdk rootProject.ext.compileSdkVersion
-    ndkVersion rootProject.ext.ndkVersion
+    compileSdk 35
+    ndkVersion "27.1.12297006"
 
     defaultConfig {
         applicationId "com.kerneluser.ace"
-        minSdk rootProject.ext.minSdkVersion
-        targetSdk rootProject.ext.targetSdkVersion
+        minSdk 24
+        targetSdk 35
         versionCode 10000
         versionName "1.0.00"
     }
@@ -51,5 +49,5 @@ android {
 dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:hermes-android")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
 }
